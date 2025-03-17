@@ -1,0 +1,40 @@
+# Application Settings
+app:
+  title: "VoiceBot Assistant"
+  version: "1.0.0"
+  language: "fr-FR"
+  window:
+    width: 400
+    height: 600
+    resizable: true
+
+# Voice Recognition Settings
+voice:
+  timeout: 5
+  energy_threshold: 4000
+  dynamic_energy: true
+  pause_threshold: 0.8
+
+# Distance Sensor Settings
+sensor:
+  trigger_pin: 23
+  echo_pin: 24
+  max_distance: 200
+  min_distance: 2
+  capture_threshold: 50
+
+# Camera Settings
+camera:
+  resolution: [640, 480]
+  framerate: 30
+  auto_exposure: true
+  capture_directory: "captures"
+
+# UI Theme
+theme:
+  primary_color: [0.2, 0.6, 0.9, 1]
+  secondary_color: [0.95, 0.95, 0.95, 1]
+  accent_color: [0.2, 0.7, 0.3, 1]
+  warning_color: [0.9, 0.3, 0.1, 1]
+  font_size: 18
+  button_height: 50 
