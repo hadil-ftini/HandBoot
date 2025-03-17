@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
-import RPi.GPIO as GPIO
 import time
 import pyttsx3
 from kivy.graphics.texture import Texture
+
+from mock_gpio import GPIO  # Use mock if on a non-Raspberry Pi system
 
 # Speech engine
 engine = pyttsx3.init()
