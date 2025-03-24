@@ -32,6 +32,18 @@ class BotState(Enum):
     PROCESSING = 'processing'
     ERROR = 'error'
 
+class VoiceInputButton(Button):
+    def __init__(self, target_input, hint_text, **kwargs):
+        super().__init__(**kwargs)
+        self.target_input = target_input
+        self.hint_text = hint_text
+        self.background_normal = ''
+        self.background_color = COLORS['accent']
+        self.size_hint = (None, None)
+        self.size = (40, 40)
+        self.text = '🎤'  # Microphone emoji
+        self.font_size = '20sp'
+
 class LoginScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -49,18 +61,33 @@ class LoginScreen(Screen):
         )
         
         # Login form
-        form_layout = GridLayout(cols=2, spacing=10, size_hint_y=None, height=100)
+        form_layout = GridLayout(cols=3, spacing=10, size_hint_y=None, height=100)
         
+        # Username row
         username_label = Label(text='Username:', color=COLORS['primary'])
         self.username_input = TextInput(multiline=False)
+        self.username_voice_button = VoiceInputButton(
+            self.username_input,
+            "Dites votre nom d'utilisateur"
+        )
+        self.username_voice_button.bind(on_press=self.get_voice_username)
         
+        # Password row
         password_label = Label(text='Password:', color=COLORS['primary'])
         self.password_input = TextInput(multiline=False, password=True)
+        self.password_voice_button = VoiceInputButton(
+            self.password_input,
+            "Dites votre mot de passe"
+        )
+        self.password_voice_button.bind(on_press=self.get_voice_password)
         
+        # Add all form elements
         form_layout.add_widget(username_label)
         form_layout.add_widget(self.username_input)
+        form_layout.add_widget(self.username_voice_button)
         form_layout.add_widget(password_label)
         form_layout.add_widget(self.password_input)
+        form_layout.add_widget(self.password_voice_button)
         
         # Login button
         self.login_button = CustomButton(
@@ -83,6 +110,32 @@ class LoginScreen(Screen):
         
         self.add_widget(layout)
 
+    def get_voice_username(self, instance):
+        """Handle voice input for username"""
+        speak("Dites votre nom d'utilisateur")
+        Clock.schedule_once(lambda dt: self.process_voice_input(self.username_input), 0.5)
+
+    def get_voice_password(self, instance):
+        """Handle voice input for password"""
+        speak("Dites votre mot de passe")
+        Clock.schedule_once(lambda dt: self.process_voice_input(self.password_input), 0.5)
+
+    def process_voice_input(self, target_input):
+        """Process voice input and update the target input field"""
+        try:
+            text = listen_for_command()
+            if text and text != "Commande non comprise" and text != "Erreur de reconnaissance":
+                target_input.text = text.lower().strip()  # Convert to lowercase and remove spaces
+                if target_input == self.password_input:
+                    speak("Mot de passe enregistré")
+                else:
+                    speak(f"J'ai enregistré: {text}")
+            else:
+                speak("Je n'ai pas compris, veuillez réessayer")
+        except Exception as e:
+            speak("Une erreur s'est produite")
+            self.error_label.text = str(e)
+
     def verify_credentials(self, instance):
         username = self.username_input.text
         password = self.password_input.text
@@ -98,6 +151,7 @@ class LoginScreen(Screen):
             Clock.schedule_once(lambda dt: self.switch_to_main(), 2)
         else:
             self.error_label.text = "Invalid credentials!"
+            speak("Identifiants invalides")
 
     def show_welcome_popup(self, username):
         content = BoxLayout(orientation='vertical', padding=10)
@@ -168,7 +222,7 @@ class MainScreen(Screen):
             background_color=COLORS['primary']
         )
         self.distance_button.bind(on_press=self.measure_distance)
-        
+
         self.settings_button = CustomButton(
             text="Paramètres",
             background_color=COLORS['primary']
