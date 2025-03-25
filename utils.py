@@ -69,24 +69,70 @@ class ConfigManager:
 class TextToSpeech:
     def __init__(self, config_manager: ConfigManager):
         self.config = config_manager
-        self.engine = pyttsx3.init()
-        self.configure_engine()
+        self.engine = None
+        self.initialize_engine()
+
+    def initialize_engine(self):
+        """Try different methods to initialize TTS engine"""
+        try:
+            # Try espeak first
+            self.engine = pyttsx3.init('espeak')
+            logger.info("Initialized TTS with espeak")
+        except:
+            try:
+                # Try default initialization
+                self.engine = pyttsx3.init()
+                logger.info("Initialized TTS with default engine")
+            except:
+                logger.error("Failed to initialize pyttsx3")
+                self.engine = None
+
+        if self.engine:
+            self.configure_engine()
 
     def configure_engine(self):
         """Configure TTS engine with settings from config"""
-        rate = self.config.get('app.voice_rate', 150)
-        volume = self.config.get('app.voice_volume', 1.0)
-        self.engine.setProperty('rate', rate)
-        self.engine.setProperty('volume', volume)
+        if not self.engine:
+            return
+
+        try:
+            # Set rate and volume
+            self.engine.setProperty('rate', 150)
+            self.engine.setProperty('volume', 1.0)
+
+            # Try to set French voice
+            voices = self.engine.getProperty('voices')
+            for voice in voices:
+                if hasattr(voice, 'languages') and 'french' in str(voice.languages).lower():
+                    self.engine.setProperty('voice', voice.id)
+                    break
+        except Exception as e:
+            logger.error(f"Error configuring TTS: {str(e)}")
 
     def speak(self, text: str) -> None:
-        """Convert text to speech"""
+        """Convert text to speech with fallback options"""
+        if not text:
+            return
+
+        # Try pyttsx3 first
+        if self.engine:
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+                logger.info(f"TTS success: {text}")
+                return
+            except Exception as e:
+                logger.error(f"pyttsx3 error: {str(e)}")
+
+        # Fallback to espeak command
         try:
-            self.engine.say(text)
-            self.engine.runAndWait()
-            logger.info(f"TTS: {text}")
+            import subprocess
+            subprocess.run(['espeak', '-v', 'fr', text], check=True)
+            logger.info(f"Fallback TTS success: {text}")
         except Exception as e:
-            logger.error(f"TTS error: {str(e)}")
+            logger.error(f"Fallback TTS error: {str(e)}")
+            # Last resort: just print
+            print(f"Speech (fallback): {text}")
 
 class ImageHandler:
     def __init__(self, config_manager: ConfigManager):

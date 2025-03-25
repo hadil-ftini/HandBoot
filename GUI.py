@@ -17,6 +17,8 @@ from object_detection import get_distance, capture_image
 from utils import verify_credentials, speak
 from enum import Enum
 import time
+from kivy.uix.slider import Slider
+from kivy.uix.switch import Switch
 
 # Set app theme colors
 COLORS = {
@@ -136,37 +138,52 @@ class LoginScreen(Screen):
             speak("Une erreur s'est produite")
             self.error_label.text = str(e)
 
-    def verify_credentials(self, instance):
-        username = self.username_input.text
-        password = self.password_input.text
-        
-        if verify_credentials(username, password):
-            # Show welcome popup
-            self.show_welcome_popup(username)
-            # Clear inputs
-            self.username_input.text = ""
-            self.password_input.text = ""
-            self.error_label.text = ""
-            # Switch to main screen
-            Clock.schedule_once(lambda dt: self.switch_to_main(), 2)
-        else:
-            self.error_label.text = "Invalid credentials!"
-            speak("Identifiants invalides")
-
     def show_welcome_popup(self, username):
+        """Show welcome popup and speak welcome message"""
+        # Prepare welcome message
+        message = f'Bienvenue, {username}!'
+        
+        # Create popup content
         content = BoxLayout(orientation='vertical', padding=10)
-        message = f'Welcome, {username}!'
         content.add_widget(Label(text=message))
+        
+        # Create and show popup
         popup = Popup(
-            title='Login Successful',
+            title='Connexion Réussie',
             content=content,
             size_hint=(None, None),
             size=(300, 200),
             auto_dismiss=True
         )
-        popup.open()
-        speak(message)  # Use TTS to welcome user
         
+        # Schedule popup to close after 3 seconds
+        Clock.schedule_once(lambda dt: popup.dismiss(), 3)
+        
+        # Show popup
+        popup.open()
+        
+        # Speak welcome message
+        Clock.schedule_once(lambda dt: speak(message), 0.5)
+
+    def verify_credentials(self, instance):
+        username = self.username_input.text
+        password = self.password_input.text
+        
+        if verify_credentials(username, password):
+            # Clear inputs first
+            self.username_input.text = ""
+            self.password_input.text = ""
+            self.error_label.text = ""
+            
+            # Show welcome message
+            self.show_welcome_popup(username)
+            
+            # Schedule transition to main screen
+            Clock.schedule_once(lambda dt: self.switch_to_main(), 3)
+        else:
+            self.error_label.text = "Identifiants invalides!"
+            speak("Identifiants invalides")
+
     def switch_to_main(self):
         self.manager.transition = SlideTransition(direction='left')
         self.manager.current = 'main'
@@ -180,6 +197,83 @@ class CustomButton(Button):
         self.font_size = '18sp'
         self.size_hint_y = None
         self.height = 50
+
+class SettingsScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build_ui()
+
+    def build_ui(self):
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        
+        # Title
+        title = Label(
+            text="Paramètres",
+            font_size='24sp',
+            size_hint_y=None,
+            height=50
+        )
+        
+        # Volume Control
+        volume_layout = BoxLayout(size_hint_y=None, height=50)
+        volume_label = Label(text="Volume:")
+        self.volume_slider = Slider(min=0, max=1, value=0.8)
+        self.volume_slider.bind(value=self.on_volume_change)
+        volume_layout.add_widget(volume_label)
+        volume_layout.add_widget(self.volume_slider)
+        
+        # Speech Rate Control
+        rate_layout = BoxLayout(size_hint_y=None, height=50)
+        rate_label = Label(text="Vitesse:")
+        self.rate_slider = Slider(min=100, max=200, value=150)
+        self.rate_slider.bind(value=self.on_rate_change)
+        rate_layout.add_widget(rate_label)
+        rate_layout.add_widget(self.rate_slider)
+        
+        # Voice Feedback Switch
+        feedback_layout = BoxLayout(size_hint_y=None, height=50)
+        feedback_label = Label(text="Retour vocal:")
+        self.feedback_switch = Switch(active=True)
+        self.feedback_switch.bind(active=self.on_feedback_change)
+        feedback_layout.add_widget(feedback_label)
+        feedback_layout.add_widget(self.feedback_switch)
+        
+        # Back Button
+        back_button = CustomButton(
+            text="Retour",
+            size_hint=(None, None),
+            size=(200, 50),
+            pos_hint={'center_x': 0.5}
+        )
+        back_button.bind(on_press=self.go_back)
+        
+        # Add all widgets
+        layout.add_widget(title)
+        layout.add_widget(volume_layout)
+        layout.add_widget(rate_layout)
+        layout.add_widget(feedback_layout)
+        layout.add_widget(back_button)
+        
+        self.add_widget(layout)
+
+    def on_volume_change(self, instance, value):
+        # Update TTS volume
+        from utils import tts
+        tts.engine.setProperty('volume', value)
+
+    def on_rate_change(self, instance, value):
+        # Update TTS rate
+        from utils import tts
+        tts.engine.setProperty('rate', value)
+
+    def on_feedback_change(self, instance, value):
+        # Enable/disable voice feedback
+        from utils import config_manager
+        config_manager._config['app']['voice_feedback'] = value
+
+    def go_back(self, instance):
+        self.manager.transition = SlideTransition(direction='right')
+        self.manager.current = 'main'
 
 class MainScreen(Screen):
     def __init__(self, **kwargs):
@@ -233,6 +327,9 @@ class MainScreen(Screen):
             background_color=COLORS['warning']
         )
         self.logout_button.bind(on_press=self.logout)
+        
+        # Modify settings button binding
+        self.settings_button.bind(on_press=self.show_settings)
         
         # Add buttons to layout
         buttons_layout.add_widget(self.start_button)
@@ -295,6 +392,10 @@ class MainScreen(Screen):
         self.manager.transition = SlideTransition(direction='right')
         self.manager.current = 'login'
 
+    def show_settings(self, instance):
+        self.manager.transition = SlideTransition(direction='left')
+        self.manager.current = 'settings'
+
 class StateManager:
     def __init__(self):
         self.current_state = BotState.IDLE
@@ -321,6 +422,7 @@ class VoiceBotGUI(App):
         sm = ScreenManager()
         sm.add_widget(LoginScreen(name='login'))
         sm.add_widget(MainScreen(name='main'))
+        sm.add_widget(SettingsScreen(name='settings'))
         
         return sm
 
