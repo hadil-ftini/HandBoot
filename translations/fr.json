@@ -1,0 +1,10 @@
+{
+    "welcome": "Bienvenue",
+    "goodbye": "Au revoir",
+    "speak_now": "Parlez maintenant",
+    "not_understood": "Je n'ai pas compris",
+    "try_again": "Veuillez réessayer",
+    "processing": "Traitement en cours",
+    "error": "Erreur",
+    "success": "Succès"
+}

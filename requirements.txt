@@ -4,3 +4,8 @@ pyttsx3>=2.90
 SpeechRecognition>=3.8.1
 numpy>=1.19.0
 PyYAML>=5.4.1
+# Install TTS dependencies
+sudo apt-get install -y \
+    espeak \
+    espeak-ng \
+    python3-espeak \

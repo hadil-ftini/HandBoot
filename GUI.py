@@ -14,11 +14,12 @@ from kivy.core.window import Window
 from kivy.uix.popup import Popup
 from Speech_Reco import listen_for_command
 from object_detection import get_distance, capture_image
-from utils import verify_credentials, speak
+from utils import verify_credentials, speak, tts
 from enum import Enum
 import time
 from kivy.uix.slider import Slider
 from kivy.uix.switch import Switch
+from kivy.uix.dropdown import DropDown
 
 # Set app theme colors
 COLORS = {
@@ -258,12 +259,10 @@ class SettingsScreen(Screen):
 
     def on_volume_change(self, instance, value):
         # Update TTS volume
-        from utils import tts
         tts.engine.setProperty('volume', value)
 
     def on_rate_change(self, instance, value):
         # Update TTS rate
-        from utils import tts
         tts.engine.setProperty('rate', value)
 
     def on_feedback_change(self, instance, value):
@@ -274,6 +273,75 @@ class SettingsScreen(Screen):
     def go_back(self, instance):
         self.manager.transition = SlideTransition(direction='right')
         self.manager.current = 'main'
+
+class LanguageScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build_ui()
+
+    def build_ui(self):
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
+        
+        # Title
+        title = Label(
+            text="Select Language / Choisir la langue",
+            font_size='24sp',
+            size_hint_y=None,
+            height=50
+        )
+        
+        # Language buttons
+        buttons_layout = GridLayout(cols=1, spacing=10, size_hint_y=None)
+        buttons_layout.bind(minimum_height=buttons_layout.setter('height'))
+        
+        # Add a button for each language
+        languages = {
+            'fr': 'Français',
+            'en': 'English',
+            'es': 'Español',
+            'ar': 'العربية'
+        }
+        
+        for lang_code, lang_name in languages.items():
+            btn = CustomButton(
+                text=lang_name,
+                size_hint_y=None,
+                height=50
+            )
+            btn.bind(on_press=lambda x, lc=lang_code: self.select_language(lc))
+            buttons_layout.add_widget(btn)
+        
+        # Add all widgets
+        layout.add_widget(title)
+        layout.add_widget(buttons_layout)
+        
+        self.add_widget(layout)
+
+    def select_language(self, lang_code):
+        from language_support import language_manager
+        from utils import config_manager, speak
+        
+        # Set the language in the language manager
+        language_manager.set_language(lang_code)
+        
+        # Save the language preference to config
+        if 'app' not in config_manager._config:
+            config_manager._config['app'] = {}
+        config_manager._config['app']['language'] = lang_code
+        config_manager.load_config()
+        
+        # Announce language change in the new language
+        welcome_messages = {
+            'fr': 'Bienvenue en français',
+            'en': 'Welcome to English',
+            'es': 'Bienvenido al español',
+            'ar': 'مرحبا بكم في العربية'
+        }
+        speak(welcome_messages.get(lang_code, welcome_messages['en']))
+        
+        # Switch to login screen
+        self.manager.transition = SlideTransition(direction='left')
+        self.manager.current = 'login'
 
 class MainScreen(Screen):
     def __init__(self, **kwargs):
@@ -331,11 +399,14 @@ class MainScreen(Screen):
         # Modify settings button binding
         self.settings_button.bind(on_press=self.show_settings)
         
+        
+        
         # Add buttons to layout
         buttons_layout.add_widget(self.start_button)
         buttons_layout.add_widget(self.distance_button)
         buttons_layout.add_widget(self.settings_button)
         buttons_layout.add_widget(self.logout_button)
+
         
         # Progress bar
         self.progress = ProgressBar(
@@ -396,6 +467,10 @@ class MainScreen(Screen):
         self.manager.transition = SlideTransition(direction='left')
         self.manager.current = 'settings'
 
+    def show_language_screen(self, instance):
+        self.manager.transition = SlideTransition(direction='left')
+        self.manager.current = 'language'
+
 class StateManager:
     def __init__(self):
         self.current_state = BotState.IDLE
@@ -420,6 +495,16 @@ class VoiceBotGUI(App):
         
         # Create screen manager
         sm = ScreenManager()
+        
+        # Load saved language from config
+        from utils import config_manager
+        from language_support import language_manager
+        
+        saved_lang = config_manager.get('app.language', 'fr')
+        language_manager.set_language(saved_lang)
+        
+        # Add screens
+        sm.add_widget(LanguageScreen(name='language'))
         sm.add_widget(LoginScreen(name='login'))
         sm.add_widget(MainScreen(name='main'))
         sm.add_widget(SettingsScreen(name='settings'))
@@ -428,3 +513,7 @@ class VoiceBotGUI(App):
 
 if __name__ == '__main__':
     VoiceBotGUI().run()
+
+print("Available voices:")
+for voice in tts.get_available_voices():
+    print(f"Name: {voice['name']}")

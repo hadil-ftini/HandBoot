@@ -70,69 +70,113 @@ class TextToSpeech:
     def __init__(self, config_manager: ConfigManager):
         self.config = config_manager
         self.engine = None
+        self.current_language = 'fr'
         self.initialize_engine()
 
     def initialize_engine(self):
-        """Try different methods to initialize TTS engine"""
+        """Initialize TTS engine with SAPI5 for Windows"""
         try:
-            # Try espeak first
-            self.engine = pyttsx3.init('espeak')
-            logger.info("Initialized TTS with espeak")
-        except:
-            try:
-                # Try default initialization
+            if os.name == 'nt':  # Windows
+                self.engine = pyttsx3.init(driverName='sapi5')
+            else:
                 self.engine = pyttsx3.init()
-                logger.info("Initialized TTS with default engine")
-            except:
-                logger.error("Failed to initialize pyttsx3")
-                self.engine = None
-
-        if self.engine:
-            self.configure_engine()
+            
+            if self.engine:
+                self.configure_engine()
+                logger.info("TTS engine initialized successfully")
+            else:
+                logger.error("Failed to initialize TTS engine")
+        except Exception as e:
+            logger.error(f"Error initializing TTS: {str(e)}")
+            self.engine = None
 
     def configure_engine(self):
-        """Configure TTS engine with settings from config"""
+        """Configure TTS engine with optimal settings"""
         if not self.engine:
             return
 
         try:
-            # Set rate and volume
-            self.engine.setProperty('rate', 150)
-            self.engine.setProperty('volume', 1.0)
-
-            # Try to set French voice
+            # Get all available voices
             voices = self.engine.getProperty('voices')
+            
+            # Dictionary to store best voices for each language
+            self.voice_map = {
+                'fr': None,
+                'en': None,
+                'es': None
+            }
+
+            # Find the best voice for each language
             for voice in voices:
-                if hasattr(voice, 'languages') and 'french' in str(voice.languages).lower():
-                    self.engine.setProperty('voice', voice.id)
-                    break
+                if "french" in voice.name.lower():
+                    self.voice_map['fr'] = voice.id
+                elif "english" in voice.name.lower():
+                    self.voice_map['en'] = voice.id
+                elif "spanish" in voice.name.lower():
+                    self.voice_map['es'] = voice.id
+
+            # Set default voice (French)
+            if self.voice_map['fr']:
+                self.engine.setProperty('voice', self.voice_map['fr'])
+            
+            # Set default properties
+            self.engine.setProperty('rate', 150)    # Normal speed
+            self.engine.setProperty('volume', 1.0)  # Maximum volume
+            
+            logger.info("TTS engine configured successfully")
+            
         except Exception as e:
             logger.error(f"Error configuring TTS: {str(e)}")
 
     def speak(self, text: str) -> None:
-        """Convert text to speech with fallback options"""
-        if not text:
+        """Speak text with appropriate voice and settings"""
+        if not text or not self.engine:
             return
 
-        # Try pyttsx3 first
-        if self.engine:
-            try:
-                self.engine.say(text)
-                self.engine.runAndWait()
-                logger.info(f"TTS success: {text}")
-                return
-            except Exception as e:
-                logger.error(f"pyttsx3 error: {str(e)}")
-
-        # Fallback to espeak command
         try:
-            import subprocess
-            subprocess.run(['espeak', '-v', 'fr', text], check=True)
-            logger.info(f"Fallback TTS success: {text}")
+            # Get current language from language manager
+            from language_support import language_manager
+            current_lang = language_manager.get_current_language_code()
+
+            # Set voice and properties based on language
+            if current_lang in self.voice_map and self.voice_map[current_lang]:
+                self.engine.setProperty('voice', self.voice_map[current_lang])
+                
+                # Adjust rate based on language
+                if current_lang == 'en':
+                    self.engine.setProperty('rate', 130)
+                elif current_lang == 'es':
+                    self.engine.setProperty('rate', 140)
+                else:
+                    self.engine.setProperty('rate', 150)
+
+            # Speak the text
+            self.engine.say(text)
+            self.engine.runAndWait()
+            logger.info(f"TTS success: {text}")
+
         except Exception as e:
-            logger.error(f"Fallback TTS error: {str(e)}")
-            # Last resort: just print
+            logger.error(f"TTS error: {str(e)}")
+            # Fallback: Just print the text
             print(f"Speech (fallback): {text}")
+
+    def get_available_voices(self):
+        """List all available voices"""
+        if not self.engine:
+            return []
+        
+        voices = []
+        try:
+            for voice in self.engine.getProperty('voices'):
+                voices.append({
+                    'id': voice.id,
+                    'name': voice.name,
+                    'languages': voice.languages if hasattr(voice, 'languages') else []
+                })
+        except Exception as e:
+            logger.error(f"Error getting voices: {str(e)}")
+        
+        return voices
 
 class ImageHandler:
     def __init__(self, config_manager: ConfigManager):
