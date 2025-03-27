@@ -47,7 +47,7 @@ class ConfigManager:
         """Return default configuration"""
         return {
             'app': {
-                'language': 'fr-FR',
+                'language': 'en-US',
                 'voice_rate': 150,
                 'voice_volume': 1.0
             },
@@ -70,11 +70,11 @@ class TextToSpeech:
     def __init__(self, config_manager: ConfigManager):
         self.config = config_manager
         self.engine = None
-        self.current_language = 'fr'
+        self.current_language = 'en'
         self.initialize_engine()
 
     def initialize_engine(self):
-        """Initialize TTS engine with SAPI5 for Windows"""
+        """Initialize TTS engine with optimal settings"""
         try:
             if os.name == 'nt':  # Windows
                 self.engine = pyttsx3.init(driverName='sapi5')
@@ -82,51 +82,37 @@ class TextToSpeech:
                 self.engine = pyttsx3.init()
             
             if self.engine:
-                self.configure_engine()
-                logger.info("TTS engine initialized successfully")
+                # Get all available voices
+                voices = self.engine.getProperty('voices')
+                
+                # Find the best English voice (usually Microsoft David or Microsoft Zira)
+                english_voice = None
+                for voice in voices:
+                    if "david" in voice.name.lower() or "zira" in voice.name.lower():
+                        english_voice = voice.id
+                        break
+                
+                # Set default properties for better English pronunciation
+                self.engine.setProperty('rate', 145)    # Slightly slower for better clarity
+                self.engine.setProperty('volume', 0.9)  # Slightly lower volume for English
+                
+                # Store voice IDs for each language
+                self.voice_map = {
+                    'en': english_voice or next((v.id for v in voices if "english" in v.name.lower()), None),
+                    'fr': next((v.id for v in voices if "french" in v.name.lower()), None),
+                    'es': next((v.id for v in voices if "spanish" in v.name.lower()), None)
+                }
+                
+                # Set default voice to English
+                if self.voice_map['en']:
+                    self.engine.setProperty('voice', self.voice_map['en'])
+                
+                logger.info("TTS engine initialized successfully with English voice")
             else:
                 logger.error("Failed to initialize TTS engine")
         except Exception as e:
             logger.error(f"Error initializing TTS: {str(e)}")
             self.engine = None
-
-    def configure_engine(self):
-        """Configure TTS engine with optimal settings"""
-        if not self.engine:
-            return
-
-        try:
-            # Get all available voices
-            voices = self.engine.getProperty('voices')
-            
-            # Dictionary to store best voices for each language
-            self.voice_map = {
-                'fr': None,
-                'en': None,
-                'es': None
-            }
-
-            # Find the best voice for each language
-            for voice in voices:
-                if "french" in voice.name.lower():
-                    self.voice_map['fr'] = voice.id
-                elif "english" in voice.name.lower():
-                    self.voice_map['en'] = voice.id
-                elif "spanish" in voice.name.lower():
-                    self.voice_map['es'] = voice.id
-
-            # Set default voice (French)
-            if self.voice_map['fr']:
-                self.engine.setProperty('voice', self.voice_map['fr'])
-            
-            # Set default properties
-            self.engine.setProperty('rate', 150)    # Normal speed
-            self.engine.setProperty('volume', 1.0)  # Maximum volume
-            
-            logger.info("TTS engine configured successfully")
-            
-        except Exception as e:
-            logger.error(f"Error configuring TTS: {str(e)}")
 
     def speak(self, text: str) -> None:
         """Speak text with appropriate voice and settings"""
@@ -137,18 +123,22 @@ class TextToSpeech:
             # Get current language from language manager
             from language_support import language_manager
             current_lang = language_manager.get_current_language_code()
+            text = self.preprocess_text(text, current_lang)
 
             # Set voice and properties based on language
             if current_lang in self.voice_map and self.voice_map[current_lang]:
                 self.engine.setProperty('voice', self.voice_map[current_lang])
                 
-                # Adjust rate based on language
+                # Adjust properties based on language
                 if current_lang == 'en':
-                    self.engine.setProperty('rate', 130)
+                    self.engine.setProperty('rate', 145)  # Slightly slower for English
+                    self.engine.setProperty('volume', 0.9)  # Slightly lower volume
                 elif current_lang == 'es':
-                    self.engine.setProperty('rate', 140)
-                else:
                     self.engine.setProperty('rate', 150)
+                    self.engine.setProperty('volume', 1.0)
+                else:  # French and others
+                    self.engine.setProperty('rate', 160)
+                    self.engine.setProperty('volume', 1.0)
 
             # Speak the text
             self.engine.say(text)
@@ -157,7 +147,6 @@ class TextToSpeech:
 
         except Exception as e:
             logger.error(f"TTS error: {str(e)}")
-            # Fallback: Just print the text
             print(f"Speech (fallback): {text}")
 
     def get_available_voices(self):
@@ -177,6 +166,20 @@ class TextToSpeech:
             logger.error(f"Error getting voices: {str(e)}")
         
         return voices
+
+    def preprocess_text(self, text: str, language: str) -> str:
+        """Preprocess text for better pronunciation"""
+        if language == 'en':
+            # Add periods after sentences for better pausing
+            text = text.replace('!', '.').replace('?', '.')
+            # Add spaces around punctuation
+            text = text.replace(',', ', ').replace('.', '. ')
+            # Remove double spaces
+            text = ' '.join(text.split())
+        return text
+
+   
+           
 
 class ImageHandler:
     def __init__(self, config_manager: ConfigManager):
