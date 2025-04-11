@@ -1,7 +1,7 @@
 kivy>=2.0.0
 opencv-python>=4.5.0
-pyttsx3>=2.90
-SpeechRecognition>=3.8.1
+pyttsx3>=2.90 (converting text to voice)
+SpeechRecognition>=3.8.1 (converting voice to text)
 numpy>=1.19.0
 PyYAML>=5.4.1
 # Install TTS dependencies
