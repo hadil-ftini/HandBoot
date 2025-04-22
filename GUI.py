@@ -14,10 +14,11 @@ from kivy.core.window import Window
 from kivy.uix.popup import Popup
 from kivy.animation import Animation
 from Speech_Reco import listen_for_command
-from object_detection import get_distance, capture_image
-from utils import verify_credentials, speak, tts
+from my_utils import verify_credentials, speak, tts
 from enum import Enum
 import time
+from object_detection import detect_objects
+
 from kivy.uix.slider import Slider
 from kivy.uix.switch import Switch
 from kivy.uix.dropdown import DropDown
@@ -224,7 +225,7 @@ class LoginScreen(Screen):
     def on_language_select(self, spinner, text):
         """Handle language selection"""
         from language_support import language_manager
-        from utils import config_manager, speak
+        from my_utils import config_manager, speak
         
         # Map display text to language codes
         lang_map = {
@@ -378,7 +379,7 @@ class SettingsScreen(Screen):
 
     def on_feedback_change(self, instance, value):
         # Enable/disable voice feedback
-        from utils import config_manager
+        from my_utils import config_manager
         config_manager._config['app']['voice_feedback'] = value
 
     def go_back(self, instance):
@@ -425,7 +426,7 @@ class MainScreen(Screen):
         self.start_button.bind(on_press=self.start_voice_recognition)
         
         self.distance_button = CustomButton(
-            text="Measure Distance",
+            text="Object Identification",
             background_color=COLORS['primary'],  # Blue color
             color=COLORS['text_light'],
             size_hint=(None, None),
@@ -504,13 +505,7 @@ class MainScreen(Screen):
         self.state_manager.change_state(BotState.IDLE)
 
     def measure_distance(self, instance):
-        self.state_manager.change_state(BotState.PROCESSING)
-        distance = get_distance()
-        self.status_label.text = f"Distance mesurée: {distance} cm"
-        speak(f"Distance mesurée: {distance} centimètres")
-        if distance < 50:
-            capture_image()
-        self.state_manager.change_state(BotState.IDLE)
+        detect_objects()
 
     def logout(self, instance):
         speak("Au revoir!")
@@ -638,7 +633,7 @@ class VoiceBotGUI(App):
         sm = ScreenManager()
         
         # Load saved language from config
-        from utils import config_manager
+        from my_utils import config_manager
         from language_support import language_manager
         
         saved_lang = config_manager.get('app.language', 'en')

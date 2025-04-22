@@ -1,46 +1,35 @@
+# object_detection.py
+
 import cv2
-import numpy as np
-import time
-import pyttsx3
-from kivy.graphics.texture import Texture
+import torch
 
-from mock_gpio import GPIO  # Use mock if on a non-Raspberry Pi system
+def detect_objects():
+    # Open the default camera
+    cap = cv2.VideoCapture(0)
 
-# Speech engine
-engine = pyttsx3.init()
+    # Load the YOLOv5 model
+    model = torch.hub.load('ultralytics/yolov5', 'yolov5s', trust_repo=True)
 
-TRIG = 23
-ECHO = 24
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(TRIG, GPIO.OUT)
-GPIO.setup(ECHO, GPIO.IN)
+        # Perform object detection
+        results = model(frame)
+        results.render()
 
-cap = cv2.VideoCapture(0)
+        # Show the frame with detection boxes
+        cv2.imshow("Object Detection", results.imgs[0])
 
-def get_distance():
-    GPIO.output(TRIG, False)
-    time.sleep(0.1)
-    GPIO.output(TRIG, True)
-    time.sleep(0.00001)
-    GPIO.output(TRIG, False)
+        # Print detected object names in console (optional)
+        detected_objects = results.pandas().xywh[0]
+        if not detected_objects.empty:
+            print("Detected objects:", ', '.join(detected_objects['name']))
 
-    pulse_start = time.time()
-    while GPIO.input(ECHO) == 0:
-        pulse_start = time.time()
-    while GPIO.input(ECHO) == 1:
-        pulse_end = time.time()
+        # Press 'q' to quit
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
-    pulse_duration = pulse_end - pulse_start
-    distance = pulse_duration * 17150
-    return round(distance, 2)
-
-def speak(text):
-    engine.say(text)
-    engine.runAndWait()
-
-def capture_image():
-    ret, frame = cap.read()
-    if ret:
-        cv2.imwrite("captured_image.jpg", frame)
-        speak("Image capturée avec succès.")
+    cap.release()
+    cv2.destroyAllWindows()

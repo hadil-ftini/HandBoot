@@ -1,6 +1,6 @@
 from kivy.core.window import Window
 from GUI import VoiceBotGUI
-from utils import tts
+from my_utils import tts
 import logging
 
 # Set window size before loading GUI
