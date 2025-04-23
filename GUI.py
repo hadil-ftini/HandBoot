@@ -385,6 +385,57 @@ class SettingsScreen(Screen):
     def go_back(self, instance):
         self.manager.transition = SlideTransition(direction='right')
         self.manager.current = 'main'
+class ObjectIdentificationScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.build_ui()
+
+    def build_ui(self):
+        layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
+
+        # Title
+        title = Label(
+            text="Object Identification",
+            font_size='24sp',
+            size_hint_y=None,
+            height=50
+        )
+
+        # Placeholder text (replace with actual object detection results later)
+        self.result_label = Label(
+            text="No object detected yet.",
+            font_size='16sp',
+            size_hint_y=None,
+            height=100
+        )
+
+        # Back button
+        back_button = CustomButton(
+            text="Back",
+            size_hint=(None, None),
+            size=(200, 50),
+            pos_hint={'center_x': 0.5},
+            color=(1, 1, 1, 1),
+            background_color=(0.2, 0.2, 0.2, 1)
+        )
+        back_button.bind(on_press=self.go_back)
+
+        # Add all widgets
+        layout.add_widget(title)
+        layout.add_widget(self.result_label)
+        layout.add_widget(back_button)
+
+        self.add_widget(layout)
+
+    def go_back(self, instance):
+        self.manager.transition = SlideTransition(direction='right')
+        self.manager.current = 'main'
+
+    def on_enter(self):
+        # This is called when the screen becomes active
+        # You can run object detection here
+        detected = detect_objects()  # make sure this function returns result
+        self.result_label.text = f"Detected: {detected}"
 
 class MainScreen(Screen):
     def __init__(self, **kwargs):
@@ -505,7 +556,9 @@ class MainScreen(Screen):
         self.state_manager.change_state(BotState.IDLE)
 
     def measure_distance(self, instance):
-        detect_objects()
+        self.manager.transition = SlideTransition(direction='left')
+        self.manager.current = 'object_identification'
+
 
     def logout(self, instance):
         speak("Au revoir!")
@@ -643,7 +696,8 @@ class VoiceBotGUI(App):
         sm.add_widget(LoginScreen(name='login'))
         sm.add_widget(MainScreen(name='main'))
         sm.add_widget(SettingsScreen(name='settings'))
-        
+        sm.add_widget(ObjectIdentificationScreen(name='object_identification'))  # Add this line
+
         return sm
 
 if __name__ == '__main__':

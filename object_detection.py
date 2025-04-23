@@ -8,7 +8,7 @@ def detect_objects():
     cap = cv2.VideoCapture(0)
 
     # Load the YOLOv5 model
-    model = torch.hub.load('ultralytics/yolov5', 'yolov5s', trust_repo=True)
+    #model = torch.hub.load('ultralytics/yolov5', 'yolov5s', trust_repo=True)
 
     while True:
         ret, frame = cap.read()
@@ -16,15 +16,15 @@ def detect_objects():
             break
 
         # Perform object detection
-        results = model(frame)
-        results.render()
+        #results = model(frame)
+        #results.render()
 
         # Show the frame with detection boxes
-        cv2.imshow("Object Detection", results.imgs[0])
+        #cv2.imshow("Object Detection", results.imgs[0])
 
         # Print detected object names in console (optional)
-        detected_objects = results.pandas().xywh[0]
-        if not detected_objects.empty:
+        #detected_objects = results.pandas().xywh[0]
+        #if not detected_objects.empty:
             print("Detected objects:", ', '.join(detected_objects['name']))
 
         # Press 'q' to quit
