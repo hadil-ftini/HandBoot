@@ -17,7 +17,7 @@ from Speech_Reco import listen_for_command
 from my_utils import verify_credentials, speak, tts
 from enum import Enum
 import time
-from object_detection import detect_objects
+from object_detection import ObjectDetector
 
 from kivy.uix.slider import Slider
 from kivy.uix.switch import Switch
@@ -385,9 +385,19 @@ class SettingsScreen(Screen):
     def go_back(self, instance):
         self.manager.transition = SlideTransition(direction='right')
         self.manager.current = 'main'
+# Update the imports at the top of the file
+from kivy.uix.camera import Camera
+from object_detection import ObjectDetector
+import cv2
+from kivy.clock import Clock
+from kivy.graphics.texture import Texture
+
 class ObjectIdentificationScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.is_detecting = False
+        self.detector = None
+        self.cap = None
         self.build_ui()
 
     def build_ui(self):
@@ -401,13 +411,31 @@ class ObjectIdentificationScreen(Screen):
             height=50
         )
 
-        # Placeholder text (replace with actual object detection results later)
+        # Camera view (using Image widget)
+        self.camera_view = Image(
+            size_hint=(1, 0.7),
+            allow_stretch=True,
+            keep_ratio=True
+        )
+
+        # Results label
         self.result_label = Label(
-            text="No object detected yet.",
+            text="Press 'Start Detection' to begin",
             font_size='16sp',
             size_hint_y=None,
             height=100
         )
+
+        # Start/Stop Detection button
+        self.detect_button = CustomButton(
+            text="Start Detection",
+            size_hint=(None, None),
+            size=(200, 50),
+            pos_hint={'center_x': 0.5},
+            color=(1, 1, 1, 1),
+            background_color=COLORS['accent']
+        )
+        self.detect_button.bind(on_press=self.toggle_detection)
 
         # Back button
         back_button = CustomButton(
@@ -422,20 +450,108 @@ class ObjectIdentificationScreen(Screen):
 
         # Add all widgets
         layout.add_widget(title)
+        layout.add_widget(self.camera_view)
         layout.add_widget(self.result_label)
+        layout.add_widget(self.detect_button)
         layout.add_widget(back_button)
 
         self.add_widget(layout)
 
+    def toggle_detection(self, instance):
+        if not self.is_detecting:
+            # Start detection
+            self.start_detection()
+            self.detect_button.text = "Stop Detection"
+            self.detect_button.background_color = COLORS['warning']
+        else:
+            # Stop detection
+            self.stop_detection()
+            self.detect_button.text = "Start Detection"
+            self.detect_button.background_color = COLORS['accent']
+
+    def start_detection(self):
+        try:
+            # Initialize camera
+            print("Initializing camera...")
+            self.cap = cv2.VideoCapture(0)
+            if not self.cap.isOpened():
+                self.result_label.text = "Error: Could not open camera"
+                return
+
+            # Set camera properties
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
+            # Initialize detector
+            if self.detector is None:
+                print("Initializing detector...")
+                self.detector = ObjectDetector()
+                print("Detector initialized!")
+
+            # Start detection
+            self.is_detecting = True
+            print("Starting detection...")
+            Clock.schedule_interval(self.update_detection, 1.0/30.0)  # 30 FPS
+            self.result_label.text = "Detection started..."
+
+        except Exception as e:
+            print(f"Error in start_detection: {str(e)}")
+            self.result_label.text = f"Error: {str(e)}"
+            self.stop_detection()
+
+    def update_detection(self, dt):
+        if not self.is_detecting or self.cap is None:
+            return False
+
+        try:
+            ret, frame = self.cap.read()
+            if not ret:
+                print("Failed to read frame")
+                return False
+
+            # Perform detection
+            frame, detections = self.detector.detect_objects(frame)
+
+            # Update detection results
+            if detections:
+                self.result_label.text = "Detected: " + ", ".join(
+                    [f"{d['class']} ({d['confidence']:.2f})" for d in detections]
+                )
+            else:
+                self.result_label.text = "No objects detected"
+
+            # Convert frame to texture for display
+            buf = cv2.flip(frame, 0)
+            buf = buf.tobytes()
+            texture = Texture.create(
+                size=(frame.shape[1], frame.shape[0]), colorfmt='bgr'
+            )
+            texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+            self.camera_view.texture = texture
+
+        except Exception as e:
+            print(f"Error in update_detection: {str(e)}")
+            self.result_label.text = f"Error during detection: {str(e)}"
+            return False
+
+        return True
+
+    def stop_detection(self):
+        self.is_detecting = False
+        Clock.unschedule(self.update_detection)
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
+        self.camera_view.texture = None
+        self.result_label.text = "Detection stopped"
+
     def go_back(self, instance):
+        self.stop_detection()
         self.manager.transition = SlideTransition(direction='right')
         self.manager.current = 'main'
 
-    def on_enter(self):
-        # This is called when the screen becomes active
-        # You can run object detection here
-        detected = detect_objects()  # make sure this function returns result
-        self.result_label.text = f"Detected: {detected}"
+    def on_leave(self):
+        self.stop_detection()
 
 class MainScreen(Screen):
     def __init__(self, **kwargs):
