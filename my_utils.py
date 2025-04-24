@@ -17,54 +17,64 @@ logging.basicConfig(
 logger = logging.getLogger('VoiceBot')
 
 class ConfigManager:
-    _instance = None
-    _config = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(ConfigManager, cls).__new__(cls)
-        return cls._instance
-
     def __init__(self):
-        if self._config is None:
-            self.load_config()
-
-    def load_config(self, config_file: str = 'config.yaml') -> None:
-        """Load configuration from YAML file"""
-        try:
-            if os.path.exists(config_file):
-                with open(config_file, 'r', encoding='utf-8') as file:
-                    self._config = yaml.safe_load(file)
-                logger.info("Configuration loaded successfully")
-            else:
-                self._config = self.get_default_config()
-                logger.warning("Using default configuration")
-        except Exception as e:
-            logger.error(f"Error loading configuration: {str(e)}")
-            self._config = self.get_default_config()
-
-    def get_default_config(self) -> dict:
-        """Return default configuration"""
-        return {
+        self._config = {
             'app': {
-                'language': 'en-US',
-                'voice_rate': 150,
-                'voice_volume': 1.0
-            },
-            'camera': {
-                'capture_dir': 'captures'
+                'language': 'en',
+                'voice_feedback': True
             }
         }
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get configuration value using dot notation"""
+    def get(self, path, default=None):
         try:
+            parts = path.split('.')
             value = self._config
-            for k in key.split('.'):
-                value = value[k]
+            for part in parts:
+                value = value[part]
             return value
         except (KeyError, TypeError):
             return default
+
+    def set(self, path, value):
+        parts = path.split('.')
+        config = self._config
+        for part in parts[:-1]:
+            if part not in config:
+                config[part] = {}
+            config = config[part]
+        config[parts[-1]] = value
+
+    def load_config(self):
+        # Add file loading logic here if needed
+        pass
+
+    def save_config(self):
+        # Add file saving logic here if needed
+        pass
+
+config_manager = ConfigManager()
+
+def speak(text):
+    # Add your speech logic here
+    print(f"Speaking: {text}")
+
+def verify_credentials(username, password):
+    # Add your credential verification logic here
+    return True  # For testing purposes
+
+class TTSEngine:
+    def __init__(self):
+        self.engine = None
+
+    def get_available_voices(self):
+        # Add your voice listing logic here
+        return [{'name': 'Default Voice'}]
+
+    def setProperty(self, property_name, value):
+        # Add property setting logic here
+        pass
+
+tts = TTSEngine()
 
 class TextToSpeech:
     def __init__(self, config_manager: ConfigManager):
@@ -177,9 +187,6 @@ class TextToSpeech:
             # Remove double spaces
             text = ' '.join(text.split())
         return text
-
-   
-           
 
 class ImageHandler:
     def __init__(self, config_manager: ConfigManager):
