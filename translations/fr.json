@@ -1,10 +1,10 @@
 {
     "welcome": "Bienvenue",
     "goodbye": "Au revoir",
-    "speak_now": "Parlez maintenant",
+    "speak_now": "speak_now",
     "not_understood": "Je n'ai pas compris",
-    "try_again": "Veuillez réessayer",
-    "processing": "Traitement en cours",
+    "try_again": "try_again",
+    "processing": "processing",
     "error": "Erreur",
-    "success": "Succès"
+    "success": "success"
 }

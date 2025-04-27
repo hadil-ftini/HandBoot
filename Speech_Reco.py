@@ -19,7 +19,11 @@ COMMANDS = {
         'language': ['langue', 'langage', 'changer langue'],
         'help': ['aide', 'assistance', 'guide'],
         'volume': ['volume', 'son', 'audio'],
-        'camera': ['caméra', 'photo', 'image']
+        'camera': ['caméra', 'photo', 'image'],
+        'go': ['avancer', 'aller', 'devant'],
+        'backward': ['reculer', 'arrière'],
+        'left': ['gauche'],
+        'right': ['droite']
     },
     'en': {
         'settings': ['settings', 'configuration', 'setup'],
@@ -31,7 +35,11 @@ COMMANDS = {
         'language': ['language', 'change language', 'switch language'],
         'help': ['help', 'assistance', 'guide'],
         'volume': ['volume', 'sound', 'audio'],
-        'camera': ['camera', 'photo', 'picture']
+        'camera': ['camera', 'photo', 'picture'],
+        'go': ['go', 'forward', 'ahead'],
+        'backward': ['backward', 'back', 'reverse'],
+        'left': ['left'],
+        'right': ['right']
     },
     'es': {
         'settings': ['configuración', 'ajustes', 'preferencias'],
@@ -43,7 +51,11 @@ COMMANDS = {
         'language': ['idioma', 'cambiar idioma', 'lenguaje'],
         'help': ['ayuda', 'asistencia', 'guía'],
         'volume': ['volumen', 'sonido', 'audio'],
-        'camera': ['cámara', 'foto', 'imagen']
+        'camera': ['cámara', 'foto', 'imagen'],
+        'go': ['avanzar', 'adelante', 'ir'],
+        'backward': ['retroceder', 'atrás'],
+        'left': ['izquierda'],
+        'right': ['derecha']
     }
 }
 
@@ -106,8 +118,8 @@ def listen_for_command(timeout=5):
                 
                 # Map language codes to Google's speech recognition codes
                 lang_map = {
-                    'fr': 'fr-FR',
                     'en': 'en-US',
+                    'fr': 'fr-FR',
                     'es': 'es-ES',
                     'ar': 'ar-SA'
                 }
@@ -120,21 +132,14 @@ def listen_for_command(timeout=5):
                 text = recognizer.recognize_google(audio, language=recognition_lang)
                 print(f"Recognized: {text}")
                 
-                # Check if it's a known command
-                command_type = get_command_type(text, current_lang)
-                if command_type:
-                    speak(language_manager.get_text('success'))
-                    return command_type
-                else:
-                    speak(f"{language_manager.get_text('you_said')}: {text}")
-                    return text
+                return text.lower()  # Always return lowercase for consistency
                     
             except sr.UnknownValueError:
                 speak(language_manager.get_text('not_understood'))
                 return "not_understood"
-            except sr.RequestError:
+            except sr.RequestError as e:
                 speak(language_manager.get_text('error'))
-                return "service_error"
+                return f"service_error: {str(e)}"
             except sr.WaitTimeoutError:
                 speak(language_manager.get_text('timeout'))
                 return "timeout"
@@ -143,7 +148,7 @@ def listen_for_command(timeout=5):
         error_msg = f"Microphone error: {str(e)}"
         logger.error(error_msg)
         speak(language_manager.get_text('error'))
-        return "error"
+        return f"error: {str(e)}"
 
 def test_microphone():
     """Test microphone setup"""

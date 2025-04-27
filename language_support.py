@@ -32,7 +32,7 @@ class LanguageManager:
     }
 
     def __init__(self):
-        self.current_language = 'fr'
+        self.current_language = 'en'
         self.translations = {}
         self.load_translations()
 
@@ -81,12 +81,12 @@ os.makedirs('translations', exist_ok=True)
 fr_translations = {
     'welcome': 'Bienvenue',
     'goodbye': 'Au revoir',
-    'speak_now': 'Parlez maintenant',
+    'speak_now': 'speak_now',
     'not_understood': 'Je n\'ai pas compris',
-    'try_again': 'Veuillez réessayer',
-    'processing': 'Traitement en cours',
+    'try_again': 'try_again',
+    'processing' :'processing',
     'error': 'Erreur',
-    'success': 'Succès'
+    'success': 'success'
 }
 
 # English translations
