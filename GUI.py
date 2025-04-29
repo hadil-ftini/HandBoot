@@ -1,53 +1,16 @@
 from kivy.app import App
-from kivy.uix.screenmanager import ScreenManager, SlideTransition
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.textinput import TextInput
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.image import Image
+from kivy.uix.progressbar import ProgressBar
+from kivy.clock import Clock
+from kivy.graphics import Color, Rectangle, RoundedRectangle
+from kivy.uix.screenmanager import ScreenManager, Screen, SlideTransition
+from kivy.uix.settings import SettingsPanel
 from kivy.core.window import Window
-<<<<<<< HEAD
-from my_utils import config_manager
-from language_support import language_manager
-
-# Import screens
-from src.screens.login_screen import LoginScreen
-from src.screens.main_screen import MainScreen
-from src.screens.settings_screen import SettingsScreen
-from src.screens.object_identification_screen import ObjectIdentificationScreen
-
-class VoiceBotGUI(App):
-    def build(self):
-        try:
-            # Set window size and title
-            Window.size = (400, 600)
-            self.title = 'VoiceBot Assistant'
-            
-            # Create screen manager with transition
-            self.sm = ScreenManager(transition=SlideTransition())
-            from my_utils import config_manager
-            from language_support import language_manager
-        
-            saved_lang = config_manager.get('app.language', 'en')
-            language_manager.set_language(saved_lang)
-            # Create and add all screens
-            screens = [
-                LoginScreen(name='login'),
-                MainScreen(name='main'),
-                SettingsScreen(name='settings'),
-                ObjectIdentificationScreen(name='object_identification')
-            ]
-            
-            # Add screens to manager
-            for screen in screens:
-                print(f"Adding screen: {screen.name}")
-                self.sm.add_widget(screen)
-            
-            # Set initial screen
-            self.sm.current = 'login'
-            
-            return self.sm
-            
-        except Exception as e:
-            print(f"Error in build: {e}")
-            raise
-
-=======
 from kivy.uix.popup import Popup
 from kivy.animation import Animation
 from Speech_Reco import listen_for_command
@@ -66,7 +29,6 @@ from kivy.uix.switch import Switch
 from kivy.uix.dropdown import DropDown
 from kivy.uix.spinner import Spinner
 from kivy.uix.widget import Widget
-
 try:
     import bluetooth
     BLUETOOTH_AVAILABLE = True
@@ -74,7 +36,7 @@ except (ImportError, OSError) as e:
     print(f"Bluetooth not available: {e}")
     BLUETOOTH_AVAILABLE = False
     bluetooth = None
-
+# Enhanced color scheme
 COLORS = {
     'primary': (0.2, 0.6, 0.9, 1),
     'secondary': (0.95, 0.95, 0.95, 1),
@@ -90,17 +52,18 @@ class BotState(Enum):
     LISTENING = 'listening'
     PROCESSING = 'processing'
     ERROR = 'error'
-
 class BluetoothManager:
     def __init__(self):
         self.socket = None
         self.target_device = None
 
     def discover_devices(self):
+        """Scan for nearby Bluetooth devices"""
         devices = bluetooth.discover_devices(lookup_names=True)
         return [{"name": name, "address": addr} for addr, name in devices]
 
     def connect(self, device_address):
+        """Connect to a Bluetooth device"""
         try:
             self.socket = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
             self.socket.connect((device_address, 1))  # HC-05 uses channel 1
@@ -110,6 +73,7 @@ class BluetoothManager:
             return False
 
     def send_command(self, command):
+        """Send a command to Arduino"""
         if self.socket:
             try:
                 self.socket.send(command.encode())
@@ -120,9 +84,9 @@ class BluetoothManager:
         return False
 
     def close(self):
+        """Close the connection"""
         if self.socket:
             self.socket.close()
-
 class ArduinoRadarManager:
     def __init__(self, app):
         self.app = app
@@ -135,6 +99,7 @@ class ArduinoRadarManager:
         self.connect_to_arduino()
 
     def connect_to_arduino(self):
+        """Try to connect to Arduino automatically"""
         ports = serial.tools.list_ports.comports()
         for port in ports:
             try:
@@ -148,12 +113,14 @@ class ArduinoRadarManager:
         print("Could not find Arduino. Please check connection.")
 
     def start_monitoring(self):
+        """Start a thread to monitor radar data"""
         if self.serial_connection and not self.running:
             self.running = True
             self.monitor_thread = Thread(target=self.monitor_radar, daemon=True)
             self.monitor_thread.start()
 
     def monitor_radar(self):
+        """Monitor radar readings from Arduino"""
         while self.running and self.serial_connection:
             try:
                 if self.serial_connection.in_waiting > 0:
@@ -194,7 +161,7 @@ class ArduinoRadarManager:
                 continue
 
     def trigger_object_detection(self):
-        """Called when radar detects an object"""
+        """Simulate pressing the object identification button when object is detected"""
         if self.app and hasattr(self.app, 'root'):
             current_screen = self.app.root.current
             print(f"Current screen: {current_screen}")
@@ -204,15 +171,34 @@ class ArduinoRadarManager:
                 return
                 
             try:
-                obj_screen = self.app.root.get_screen('object_identification')
-                if obj_screen:
-                    print("Starting object detection from radar")
-                    Clock.schedule_once(lambda dt: obj_screen.start_detection_from_radar())
+                main_screen = self.app.root.get_screen('main')
+                if main_screen:
+                    print("Scheduling button press")
+                    Clock.schedule_once(lambda dt: self.press_object_button(main_screen))
                     speak("Object detected nearby")
             except Exception as e:
-                print(f"Error getting object screen: {e}")
+                print(f"Error getting main screen: {e}")
+
+    def press_object_button(self, main_screen):
+        """Programmatically press the object identification button"""
+        current_screen = self.app.root.current
+        print(f"Attempting to press button on screen: {current_screen}")
+        
+        if current_screen == 'object_identification':
+            print("Already on object identification screen")
+            return
+            
+        if current_screen == 'main' and hasattr(main_screen, 'distance_button'):
+            print("Pressing object identification button")
+            original_color = main_screen.distance_button.background_color
+            main_screen.distance_button.background_color = [c * 0.8 for c in original_color[:3]] + [original_color[3]]
+            main_screen.measure_distance(main_screen.distance_button)
+            Animation(background_color=original_color, duration=0.3).start(main_screen.distance_button)
+        else:
+            print(f"Not on main screen (current: {current_screen}) or button not found")
 
     def send_command(self, command):
+        """Send a command to the Arduino"""
         if self.serial_connection and self.serial_connection.is_open:
             try:
                 self.serial_connection.write(command.encode())
@@ -224,6 +210,7 @@ class ArduinoRadarManager:
         return False
 
     def close(self):
+        """Clean up resources"""
         self.running = False
         if self.serial_connection and self.serial_connection.is_open:
             self.serial_connection.close()
@@ -523,8 +510,13 @@ class ObjectIdentificationScreen(Screen):
         self.model = None
         self.event = None
         self.build_ui()
-        # Removed auto-start on enter
-        # self.bind(on_enter=self.auto_start_detection)
+        self.bind(on_enter=self.auto_start_detection)
+
+    def auto_start_detection(self, *args):
+        """Automatically start detection when screen is opened"""
+        if not self.is_detecting:
+            self.toggle_detection(None)
+            speak("Starting object detection now")
 
     def build_ui(self):
         layout = BoxLayout(orientation='vertical', padding=20, spacing=15)
@@ -543,7 +535,7 @@ class ObjectIdentificationScreen(Screen):
         )
 
         self.result_label = Label(
-            text="Waiting for radar detection...",
+            text="No object detected yet.",
             font_size='16sp',
             size_hint_y=None,
             height=100
@@ -577,22 +569,14 @@ class ObjectIdentificationScreen(Screen):
 
         self.add_widget(layout)
 
-    def start_detection_from_radar(self):
-        """Called when radar detects an object"""
+    def toggle_detection(self, instance):
         if not self.is_detecting:
             self.is_detecting = True
             self.identify_button.text = "Stop"
             self.identify_button.background_color = COLORS['warning']
             self.start_detection()
-            speak("Starting object identification")
-
-    def toggle_detection(self, instance):
-        """Manual toggle (if user presses the button)"""
-        if not self.is_detecting:
-            self.start_detection_from_radar()
         else:
             self.stop_detection()
-            speak("Stopping object identification")
 
     def start_detection(self):
         try:
@@ -732,24 +716,35 @@ class ObjectIdentificationScreen(Screen):
         Clock.schedule_once(update)
 
     def load_model(self):
+        # Configure logging at the function level
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
         try:
             import torch
             import sys
-            import logging
             import os
-            from ultralytics import YOLO
             
-            logging.basicConfig(level=logging.INFO)
-            logger = logging.getLogger(__name__)
-            
+            # Update UI to show loading status
             self.update_status_label("Loading YOLOv5 model...")
             logger.info("Starting model load")
             
             try:
+                # Get the path to the local model file
                 model_path = os.path.join(os.path.dirname(__file__), 'yolov5s.pt')
                 logger.info(f"Loading model from: {model_path}")
-                self.model = YOLO(model_path)
+                
+                # Import YOLO in a thread-safe way
+                import threading
+                lock = threading.Lock()
+                with lock:
+                    from ultralytics import YOLO
+                    self.model = YOLO(model_path)
+                
                 logger.info("Model loaded successfully")
+                
+                # Update UI
                 self.update_status_label("Model loaded successfully. Starting detection...")
                 
             except Exception as model_error:
@@ -847,6 +842,7 @@ class MainScreen(Screen):
         self.state_manager.add_observer(self)
 
     def measure_distance(self, instance):
+        """Handle both manual button presses and automatic triggers"""
         print("Measure distance called")
         if isinstance(instance, CustomButton):
             original_color = instance.background_color
@@ -869,6 +865,7 @@ class MainScreen(Screen):
         speak(self.status_label.text)
 
     def send_arduino_command(self, command):
+        """Send command via Bluetooth"""
         if self.bluetooth_manager.send_command(command):
             print(f"Sent command: {command}")
             speak(f"Command sent: {command}")
@@ -877,6 +874,7 @@ class MainScreen(Screen):
             speak("Bluetooth error")
 
     def show_bluetooth_devices(self):
+        """Show available Bluetooth devices in a popup"""
         devices = self.bluetooth_manager.discover_devices()
         layout = BoxLayout(orientation='vertical')
         
@@ -889,13 +887,14 @@ class MainScreen(Screen):
         popup.open()
 
     def connect_bluetooth(self, device_address):
+        """Connect to selected Bluetooth device"""
         if self.bluetooth_manager.connect(device_address):
             speak("Bluetooth connected")
         else:
             speak("Connection failed")
-
     def start_voice_recognition(self, instance):
         try:
+        # Check microphone availability first
             if not self.check_microphone():
                 self.status_label.text = "Microphone not available"
                 speak("Microphone not available")
@@ -904,6 +903,7 @@ class MainScreen(Screen):
             self.state_manager.change_state(BotState.LISTENING)
             speak("I'm listening speak_now'..")
         
+        # Run in a separate thread to avoid freezing GUI
             import threading
             threading.Thread(
                 target=self.process_voice_command_thread,
@@ -916,6 +916,7 @@ class MainScreen(Screen):
             speak("Error starting voice recognition")
 
     def check_microphone(self):
+        """Check if microphone is available"""
         try:
             import speech_recognition as sr
             print("Available microphones:", sr.Microphone.list_microphone_names())
@@ -925,7 +926,6 @@ class MainScreen(Screen):
         except Exception as e:
             print(f"Microphone error: {e}")
             return False
-
     def process_voice_command_thread(self):
         try:
             command = listen_for_command()
@@ -939,6 +939,7 @@ class MainScreen(Screen):
             
             command = command.lower()
             
+            # Movement commands
             if command in ['go', 'forward']:
                 self.send_arduino_command('F')
                 self.status_label.text = "Moving forward"
@@ -970,6 +971,7 @@ class MainScreen(Screen):
         self.state_manager.change_state(BotState.ERROR)
 
     def send_arduino_command(self, command):
+        """Send a command to the Arduino via serial connection"""
         if hasattr(self, 'radar_manager') and hasattr(self.radar_manager, 'send_command'):
             if self.radar_manager.send_command(command):
                 print(f"Sent command to Arduino: {command}")
@@ -1123,6 +1125,5 @@ class VoiceBotGUI(App):
         if hasattr(self, 'radar_manager'):
             self.radar_manager.close()
 
->>>>>>> f02ac2d (test)
 if __name__ == '__main__':
     VoiceBotGUI().run()
